@@ -16,7 +16,6 @@ import { AssetManager } from './AssetManager.js';
 import { GUI } from 'https://unpkg.com/three@0.138.0/examples/jsm/libs/lil-gui.module.min.js';
 import { Stats } from "./stats.js";
 import { SSAOShader } from "./SSAOShader.js";
-import * as Nodes from 'https://unpkg.com/three@0.138.0/examples/jsm/nodes/Nodes.js';
 import CustomLightShadowFragment from './CustomLightShadowFragment.js';
 import { CapsuleEntity } from './CapsuleEntity.js';
 import { PointerLockControls } from 'https://unpkg.com/three@0.138.0/examples/jsm/controls/PointerLockControls.js';
