@@ -20,6 +20,7 @@ import * as Nodes from 'https://unpkg.com/three@0.138.0/examples/jsm/nodes/Nodes
 import CustomLightShadowFragment from './CustomLightShadowFragment.js';
 import { CapsuleEntity } from './CapsuleEntity.js';
 import { PointerLockControls } from 'https://unpkg.com/three@0.138.0/examples/jsm/controls/PointerLockControls.js';
+import { Butterfly } from "./Butterfly.js";
 async function main() {
     // Setup basic renderer, controls, and profiler
     const clientWidth = window.innerWidth * 0.99;
@@ -970,7 +971,15 @@ void main() {
     stems.geometry.setAttribute('offset', new THREE.InstancedBufferAttribute(new Float32Array(flowerOffsets), 1));
     //scene.add(new THREE.Mesh(BufferGeometryUtils.mergeBufferGeometries(treeParts), new THREE.MeshStandardMaterial({ color: new THREE.Color(1.0, 0.5, 0.25) })));
     const butterfly = await AssetManager.loadGLTFAsync("butterfly.glb");
-    scene.add(butterfly.scene);
+    butterfly.scene.traverse(mesh => {
+            if (mesh.material) {
+                mesh.material.envMap = environment;
+                mesh.material.needsUpdate = true;
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+            }
+        })
+        //scene.add(butterfly.scene);
     let frame = 0;
     let geometries = [];
     [terrainMesh, ...rocks.map(rock => rock.levels[2].object), ...trees].forEach(object => {
@@ -993,6 +1002,7 @@ void main() {
     collider.material.transparent = true;
     collider.visible = false;
     collider.geometry.boundsTree = mergedGeometry.boundsTree;
+    terrainMesh.geometry.boundsTree = new MeshBVHLib.MeshBVH(terrainMesh.geometry, { lazyGeneration: false, strategy: MeshBVHLib.SAH });;
     scene.add(collider);
 
     const visualizer = new MeshBVHLib.MeshBVHVisualizer(collider, 20);
@@ -1001,6 +1011,28 @@ void main() {
     scene.add(visualizer);
     const playerCapsule = new CapsuleEntity(2.5, 15);
     playerCapsule.position.y = 250;
+    const butterflies = [];
+    for (let i = 0; i < 30; i++) {
+        /* const position = new THREE.Vector3(-256 + Math.random() * 512, -256 + Math.random() * 512);
+         const mesh = butterfly.scene.clone();
+         const animations = */
+        const xPos = -256 + Math.random() * 512;
+        const zPos = -256 + Math.random() * 512;
+        if (
+            treePositions.some(position => Math.hypot(position.x - xPos, position.z - zPos) < 10) ||
+            rockPositions.some(position => Math.hypot(position.x - xPos, position.z - zPos) < 10)) {
+            i--;
+            continue;
+        }
+        const height = terrainMesh.geometry.boundsTree.raycastFirst(new THREE.Ray(new THREE.Vector3(xPos, 1000, zPos), new THREE.Vector3(0, -1, 0)), THREE.DoubleSide); //new THREE.Raycaster(new THREE.Vector3(xPos, 1000, zPos), new THREE.Vector3(0, -1, 0)).intersectObject(terrainMesh);
+        const position = new THREE.Vector3(xPos, height.point.y + 15 + 10 * Math.random(), zPos);
+        const b = new Butterfly(butterfly.scene, butterfly.animations, {
+            position,
+            scene
+        });
+        scene.add(b.mesh);
+        butterflies.push(b);
+    }
     let lastTime = performance.now();
     const keys = {};
     document.onkeydown = (e) => {
@@ -1150,6 +1182,7 @@ void main() {
             terrainShader.uniforms.reflect.value = false;
         }
         const delta = Math.min((performance.now() - lastTime) / 1000, 0.1);
+        const timeScale = delta / (1 / 60);
         for (let i = 0; i < 5; i++) {
             playerCapsule.update(delta / 5, collider);
         }
@@ -1183,6 +1216,15 @@ void main() {
         if (playerCapsule.position.y < -250) {
             playerCapsule.position.set(0, 250, 0);
         }
+        butterflies.forEach(butterfly => {
+            butterfly.update(delta, collider, {
+                flower: bigFlower.visible,
+                flowerPos: bigFlower.children[0].getWorldPosition(new THREE.Vector3()),
+                playerPos: playerCapsule.position,
+                butterflies,
+                timeScale
+            });
+        });
         lastTime = performance.now();
         renderer.setRenderTarget(defaultTexture);
         renderer.clear();
