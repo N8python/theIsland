@@ -23,6 +23,14 @@ import { PointerLockControls } from 'https://unpkg.com/three@0.138.0/examples/js
 import { Butterfly } from "./Butterfly.js";
 async function main() {
     // Setup basic renderer, controls, and profiler
+    function nextFrame() {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                resolve()
+            })
+        })
+    }
+    const loadingElement = document.getElementById("loading");
     const clientWidth = window.innerWidth * 0.99;
     const clientHeight = window.innerHeight * 0.98;
     const scene = new THREE.Scene();
@@ -30,7 +38,6 @@ async function main() {
     //camera.position.set(50, 75, 50);
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(clientWidth, clientHeight);
-    document.body.appendChild(renderer.domElement);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.VSMShadowMap;
     const controls = new PointerLockControls(camera, document.body);
@@ -40,7 +47,6 @@ async function main() {
     })
     const stats = new Stats();
     stats.showPanel(0);
-    document.body.appendChild(stats.dom);
     // Setup scene
     // Skybox
     const environment = new THREE.CubeTextureLoader().load([
@@ -104,6 +110,8 @@ async function main() {
     // Build postprocessing stack
     // Render Targets
     noise.seed(Math.random());
+    loadingElement.innerHTML = "Building Terrain...";
+    await nextFrame();
     const terrainGeo = new THREE.PlaneGeometry(1024, 1024, 1024, 1024);
     terrainGeo.applyMatrix4(new THREE.Matrix4().makeRotationX(Math.PI / 2));
     // scene.add(new THREE.Mesh(terrainGeo.clone(), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, transparent: true, color: new THREE.Color(0.0, 0.5, 1.0), opacity: 0.5 })));
@@ -243,6 +251,8 @@ async function main() {
         grassGeo.attributes.normal.setY(i, 1);
         grassGeo.attributes.normal.setZ(i, 0);
     }*/
+    loadingElement.innerHTML = "Placing Grass & Flora...";
+    await nextFrame();
     const instancedMesh = new THREE.InstancedMesh(grassGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, color: new THREE.Color(0.4, 0.4, 0.2), map: new THREE.TextureLoader().load("grassalbido.jpeg"), alphaMap: new THREE.TextureLoader().load("grassalpha.jpg"), transparent: true, alphaTest: 0.5 }), 100000);
     let grassShader;
     instancedMesh.material.onBeforeCompile = (shader) => {
@@ -546,7 +556,7 @@ async function main() {
     //bigFlower.geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 4, 0));
     //bigFlower.geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
     camera.add(bigFlower);
-    bigFlower.visible = false;
+    bigFlower.visible = true;
     const reflectScene = new THREE.Scene();
     const ambientLight2 = new THREE.AmbientLight(new THREE.Color(1.0, 1.0, 1.0), 0.25);
     reflectScene.add(ambientLight2);
@@ -654,10 +664,16 @@ async function main() {
     const leafNormal = new THREE.TextureLoader().load("leafnormal2.png");
     const barkMap = new THREE.TextureLoader().load("barkmap.jpeg");
     const barkColor = new THREE.TextureLoader().load("barkcolor.jpeg");
+    loadingElement.innerHTML = "Growing Trees...";
+    await nextFrame();
     let tickers = [];
     let treePositions = [];
     let trees = [];
     for (let i = 0; i < 100; i++) {
+        if (i % 10 === 0) {
+            loadingElement.innerHTML = `Growing Trees ${i}/100...`;
+            await nextFrame();
+        }
         const extraHeight = Math.random();
         const width = 10 * (0.75 + 0.5 * Math.random()) + 5 * extraHeight;
         const treeParts = makeTree([], new THREE.Vector3(0, 0, 0), width, width / (1.875 + Math.random() * 0.25), new THREE.Vector3(0, 1, 0), 32 * (0.75 + 0.5 * Math.random()) + 32 * extraHeight);
@@ -820,7 +836,7 @@ void main() {
     rockTextures.forEach(rockT => {
         rockT.wrapS = THREE.RepeatWrapping;
         rockT.wrapT = THREE.RepeatWrapping;
-    })
+    });
     const rockNormals = [
         new THREE.TextureLoader().load("rocknormal1.png"),
         new THREE.TextureLoader().load("rocknormal2.png"),
@@ -832,8 +848,21 @@ void main() {
         rockN.wrapS = THREE.RepeatWrapping;
         rockN.wrapT = THREE.RepeatWrapping;
     })
+    loadingElement.innerHTML = "Carving Rocks...";
+    await nextFrame();
+    const levelGeos = [
+        new THREE.IcosahedronGeometry(5, 40),
+        new THREE.IcosahedronGeometry(5, 20),
+        new THREE.IcosahedronGeometry(5, 10),
+        new THREE.IcosahedronGeometry(5, 5),
+        new THREE.IcosahedronGeometry(5, 2)
+    ];
     let rocks = [];
     for (let i = 0; i < 100; i++) {
+        if (i % 10 === 0) {
+            loadingElement.innerHTML = `Carving Rocks ${i}/100...`;
+            await nextFrame();
+        }
         const lodMesh = new THREE.LOD();
         let surfaceDir = new THREE.Vector3();
         let targetDir = new THREE.Vector3(0, -1, 0);
@@ -896,13 +925,6 @@ void main() {
 	        #endif
             `).replace(`#include <lights_fragment_begin>`, CustomLightShadowFragment);
         };
-        const levelGeos = [
-            new THREE.IcosahedronGeometry(5, 40),
-            new THREE.IcosahedronGeometry(5, 20),
-            new THREE.IcosahedronGeometry(5, 10),
-            new THREE.IcosahedronGeometry(5, 5),
-            new THREE.IcosahedronGeometry(5, 2)
-        ];
         //new THREE.IcosahedronGeometry(5, Math.round(80 / (2 ** level)))
         for (let level = 0; level < levelGeos.length; level++) {
             const rockMesh = new THREE.Mesh(levelGeos[level].clone(), rockMat);
@@ -970,6 +992,8 @@ void main() {
     flowers.geometry.setAttribute('offset', new THREE.InstancedBufferAttribute(new Float32Array(flowerOffsets), 1));
     stems.geometry.setAttribute('offset', new THREE.InstancedBufferAttribute(new Float32Array(flowerOffsets), 1));
     //scene.add(new THREE.Mesh(BufferGeometryUtils.mergeBufferGeometries(treeParts), new THREE.MeshStandardMaterial({ color: new THREE.Color(1.0, 0.5, 0.25) })));
+    loadingElement.innerHTML = "Summoning Butterflies...";
+    await nextFrame();
     const butterfly = await AssetManager.loadGLTFAsync("butterfly.glb");
     butterfly.scene.traverse(mesh => {
             if (mesh.material) {
@@ -980,6 +1004,8 @@ void main() {
             }
         })
         //scene.add(butterfly.scene);
+    loadingElement.innerHTML = "Baking Collision Mesh (0 / 3)...";
+    await nextFrame();
     let frame = 0;
     let geometries = [];
     [terrainMesh, ...rocks.map(rock => rock.levels[2].object), ...trees].forEach(object => {
@@ -994,6 +1020,8 @@ void main() {
             geometries.push(cloned);
         }
     });
+    loadingElement.innerHTML = "Baking Collision Mesh (1 / 3)...";
+    await nextFrame();
     const mergedGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries.map(geom => geom.toNonIndexed()), false);
     mergedGeometry.boundsTree = new MeshBVHLib.MeshBVH(mergedGeometry, { lazyGeneration: false, strategy: MeshBVHLib.SAH });
     const collider = new THREE.Mesh(mergedGeometry);
@@ -1002,15 +1030,39 @@ void main() {
     collider.material.transparent = true;
     collider.visible = false;
     collider.geometry.boundsTree = mergedGeometry.boundsTree;
-    terrainMesh.geometry.boundsTree = new MeshBVHLib.MeshBVH(terrainMesh.geometry, { lazyGeneration: false, strategy: MeshBVHLib.SAH });;
+    loadingElement.innerHTML = "Baking Collision Mesh (2 / 3)...";
+    await nextFrame();
+    terrainMesh.geometry.boundsTree = new MeshBVHLib.MeshBVH(terrainMesh.geometry, { lazyGeneration: false, strategy: MeshBVHLib.SAH });
     scene.add(collider);
 
     const visualizer = new MeshBVHLib.MeshBVHVisualizer(collider, 20);
     visualizer.visible = false;
     visualizer.update();
     scene.add(visualizer);
+    loadingElement.innerHTML = "Placing Butterflies...";
+    await nextFrame();
     const playerCapsule = new CapsuleEntity(2.5, 15);
-    playerCapsule.position.y = 250;
+    while (true) {
+        /* const position = new THREE.Vector3(-256 + Math.random() * 512, -256 + Math.random() * 512);
+         const mesh = butterfly.scene.clone();
+         const animations = */
+        const xPos = 0 + (Math.random() - 0.5) * Math.random() * 512;
+        const zPos = 0 + (Math.random() - 0.5) * Math.random() * 512;
+        if (
+            treePositions.some(position => Math.hypot(position.x - xPos, position.z - zPos) < 10) ||
+            rockPositions.some(position => Math.hypot(position.x - xPos, position.z - zPos) < 10)) {
+            continue;
+        }
+        const height = terrainMesh.geometry.boundsTree.raycastFirst(new THREE.Ray(new THREE.Vector3(xPos, 1000, zPos), new THREE.Vector3(0, -1, 0)), THREE.DoubleSide);
+        const badHeight = collider.geometry.boundsTree.raycastFirst(new THREE.Ray(new THREE.Vector3(xPos, 1000, zPos), new THREE.Vector3(0, -1, 0)), THREE.DoubleSide);
+        if (badHeight > height + 0.1) {
+            continue;
+        }
+        const position = new THREE.Vector3(xPos, height.point.y + 15 + 10 * Math.random(), zPos);
+        playerCapsule.position.copy(position);
+        break;
+    }
+    const ogPosition = playerCapsule.position.clone();
     const butterflies = [];
     for (let i = 0; i < 30; i++) {
         /* const position = new THREE.Vector3(-256 + Math.random() * 512, -256 + Math.random() * 512);
@@ -1110,6 +1162,10 @@ void main() {
     let removedVelocities = [];
     let removedAccelerations = [];
     scene.add(controls.getObject());
+    document.getElementById("background").style.display = "none";
+    document.body.appendChild(stats.dom);
+    document.body.appendChild(renderer.domElement);
+    loadingElement.innerHTML = "Done!";
 
     function animate() {
         //console.log(mouseDown);
@@ -1178,6 +1234,12 @@ void main() {
                 rock.autoUpdate = true;
             });
         }
+        if (frame > 60) {
+            loadingElement.style.display = "none";
+        }
+        if (frame === 1) {
+            bigFlower.visible = false;
+        }
         if (terrainShader) {
             terrainShader.uniforms.reflect.value = false;
         }
@@ -1214,7 +1276,7 @@ void main() {
             }
         }
         if (playerCapsule.position.y < -250) {
-            playerCapsule.position.set(0, 250, 0);
+            playerCapsule.position.copy(ogPosition);
         }
         butterflies.forEach(butterfly => {
             butterfly.update(delta, collider, {

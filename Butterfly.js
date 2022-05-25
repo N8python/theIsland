@@ -38,7 +38,6 @@ class Butterfly {
         butterflies,
         timeScale
     }) {
-        console.log(timeScale);
         this.mixer.update(delta);
         this.noFollow--;
         if (this.state === "fly") {
