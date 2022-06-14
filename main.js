@@ -41,9 +41,6 @@ async function main() {
     renderer.shadowMap.type = THREE.VSMShadowMap;
     const controls = new PointerLockControls(camera, document.body);
     scene.add(controls.getObject());
-    document.addEventListener("click", () => {
-        controls.lock();
-    })
     const stats = new Stats();
     stats.showPanel(0);
     // Setup scene
@@ -252,7 +249,7 @@ async function main() {
     }*/
     loadingElement.innerHTML = "Placing Grass & Flora...";
     await nextFrame();
-    const instancedMesh = new THREE.InstancedMesh(grassGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, color: new THREE.Color(0.4, 0.4, 0.2), map: new THREE.TextureLoader().load("grassalbido.jpeg"), alphaMap: new THREE.TextureLoader().load("grassalpha.jpg"), transparent: true, alphaTest: 0.5 }), 100000);
+    const instancedMesh = new THREE.InstancedMesh(grassGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, color: new THREE.Color(0.4, 0.4, 0.2), map: new THREE.TextureLoader().load("grassalbido.jpeg"), alphaMap: new THREE.TextureLoader().load("grassalpha.jpg"), alphaTest: 0.5 }), 100000);
     let grassShader;
     instancedMesh.material.onBeforeCompile = (shader) => {
         shader.uniforms.time = { value: 0.0 };
@@ -1164,6 +1161,9 @@ void main() {
     document.getElementById("background").style.display = "none";
     document.body.appendChild(stats.dom);
     document.body.appendChild(renderer.domElement);
+    document.addEventListener("click", () => {
+        controls.lock();
+    });
     loadingElement.innerHTML = "Done!";
 
     function animate() {
