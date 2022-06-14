@@ -806,7 +806,6 @@ void main() {
             vec3 normal = normalize(vWorldPosition - leafCenter);
             vec3 geometryNormal = normal;
             `);
-            console.log(shader.fragmentShader);
         }
         leavesMesh.geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 15, 0));
         leavesMesh.geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
