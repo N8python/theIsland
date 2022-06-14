@@ -717,14 +717,14 @@ async function main() {
         treeMesh.castShadow = true;
         treeMesh.receiveShadow = true;
         scene.add(treeMesh);
-        const leavesMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(10, 30), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, color: new THREE.Color(Math.random(), 2.5 + 1.0 * Math.random(), Math.random()), alphaMap: leafAlpha, map: leafColor, normalMap: leafNormal, transparent: true, alphaTest: 0.5 }), 1000 + 1000 * extraHeight);
+        const leavesMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(10, 30), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, color: new THREE.Color(Math.random(), 2.5 + 1.0 * Math.random(), Math.random()), alphaMap: leafAlpha, map: leafColor, normalMap: leafNormal, alphaTest: 0.5 }), 1000 + 1000 * extraHeight);
         let currLeavesShader;
         const leafCenter = new THREE.Vector3();
         leavesMesh.material.onBeforeCompile = (shader) => {
             currLeavesShader = shader;
             tickers.push(shader);
-            shader.uniforms.time = { value: leafCenter };
-            shader.uniforms.leafCenter = { value: new THREE.Vector3() };
+            shader.uniforms.time = { value: 0 };
+            shader.uniforms.leafCenter = { value: leafCenter };
             shader.uniforms.cameraPos = { value: camera.position };
             shader.vertexShader = /*glsl*/ `
             #define STANDARD
@@ -776,12 +776,13 @@ void main() {
             shader.fragmentShader = "uniform vec3 leafCenter;\nvarying vec3 vWorldPosition;\nuniform vec3 cameraPos;\n" + shader.fragmentShader.replace("#include <normal_fragment_maps>", /*glsl*/ `
             #include <normal_fragment_maps>
             mat4 viewMatrixInv = inverse(viewMatrix);
-            vec3 fromCenter = normalize(vWorldPosition - leafCenter);
-            vec3 scatteringHalf = normalize(normalize(vec3(300.0, 200.0, 100.0)) + 0.0 * fromCenter);
+            //vec3 fromCenter = normalize(vWorldPosition - leafCenter);
+            vec3 scatteringHalf = normalize(normalize(vec3(300.0, 200.0, 100.0)) + 0.25 * fromCenter);
             float scatteringDot = pow(clamp(dot(normalize(cameraPos - vWorldPosition), -scatteringHalf), 0.0, 1.0), 8.0);
             //gl_FragColor = vec4(vec3(scatteringDot), 1.0);
             //return;
             totalEmissiveRadiance += scatteringDot * vec3(0.07, 0.76, 0.1);
+            //totalEmissiveRadiance += 0.5 * (max(dot(fromCenter, normalize(vec3(300.0, 200.0, 100.0))), 0.0)) * vec3(0.07, 0.76, 0.1);
             `);
             shader.uniforms.shadowTex = { value: null };
             shader.uniforms.lightViewMat = { value: directionalLight.shadow.camera.matrixWorldInverse };
@@ -791,14 +792,21 @@ void main() {
             });
             shader.fragmentShader = "uniform mat4 lightViewMat;\nuniform mat4 lightProjMat;\nuniform sampler2D shadowTex;\n" + shader.fragmentShader.replace("#include <map_fragment>", `
             #include <map_fragment>
+            vec3 fromCenter = normalize(vWorldPosition - leafCenter);
             vec4 projCoords = lightProjMat * lightViewMat * vec4(vWorldPosition, 1.0);
             projCoords.xyz /= projCoords.w;
             projCoords.xyz = projCoords.xyz * 0.5 + 0.5;
             float s = 1.0;
             if (projCoords.x > 0.0 && projCoords.x < 1.0 && projCoords.y > 0.0 && projCoords.y < 1.0 && projCoords.z > 0.0 && projCoords.z < 1.0) {
-                s = (VSMShadow(shadowTex, projCoords.xy, projCoords.z - 0.001));
+                s = max(dot(fromCenter, normalize(vec3(300.0, 200.0, 100.0))), 0.0);
             }
             `).replace(`#include <lights_fragment_begin>`, CustomLightShadowFragment);
+            shader.fragmentShader = shader.fragmentShader.replace("#include <normal_fragment_begin>", `
+            float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;
+            vec3 normal = normalize(vWorldPosition - leafCenter);
+            vec3 geometryNormal = normal;
+            `);
+            console.log(shader.fragmentShader);
         }
         leavesMesh.geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 15, 0));
         leavesMesh.geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
